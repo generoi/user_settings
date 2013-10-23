@@ -1,4 +1,4 @@
-user_settings
+User settings
 =============
 
 Let users customize their pages.

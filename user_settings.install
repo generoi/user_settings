@@ -1,0 +1,52 @@
+<?php
+
+/**
+ *  Implements hook_schema().
+ */
+function user_settings_schema() {
+
+  $schema['user_settings'] = array(
+    'description' => 'The table for user settings',
+    'fields' => array(
+      'uid' => array(
+        'type' => 'int',
+        'length' => 10,
+        'not null' => TRUE,
+      ),
+      'font_family' => array(
+        'description' => 'Font family',
+        'type' => 'varchar',
+        'length' => 40,
+        'not null' => TRUE,
+      ),
+      'font_size' => array(
+        'description' => 'Font size',
+        'type' => 'int',
+        'length' => 5,
+      ),
+      'color_heading' => array(
+        'description' => 'Heading color',
+        'type' => 'varchar',
+        'length' => 7,
+        'not null' => FALSE,
+      ),
+      'color_text' => array(
+        'description' => 'Text color',
+        'type' => 'varchar',
+        'length' => 7,
+        'not null' => FALSE,
+      ),
+    ),
+    'foreign keys' => array(
+      'node_author' => array(
+        'table' => 'users',
+        'columns' => array(
+          'uid' => 'uid',
+        ),
+      ),
+    ),
+  );
+
+  return $schema;
+
+}

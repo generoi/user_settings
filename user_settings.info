@@ -1,0 +1,7 @@
+name = User settings
+description = Description
+core = 7.x
+package = User
+dependencies[] = user
+
+files[] = user_settings.module

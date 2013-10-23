@@ -1,0 +1,9 @@
+{
+  "fonts": [
+    {"url" : "http://fonts.googleapis.com/css?family=Cherry+Swash", "family" : "Cherry Swash"},
+    {"url" : "http://fonts.googleapis.com/css?family=Stint+Ultra+Expanded", "family" : "Stint Ultra Expanded"},
+    {"url" : "http://fonts.googleapis.com/css?family=Belleza", "family" : "Belleza"},
+    {"url" : "http://fonts.googleapis.com/css?family=Roboto", "family" : "Roboto"},
+    {"url" : "http://fonts.googleapis.com/css?family=Montaga", "family" : "Montaga"}
+  ]
+}

@@ -1,0 +1,316 @@
+<?php
+
+/**
+ * @todo Clean up code.
+ * @todo Fix permissions.
+ * @todo Form validation.
+ */
+
+/**
+ *  Ipmlements hook_permission().
+ */
+function user_settings_permission() {
+  return array(
+    'user settings' => array(
+      'title' => t('User settings'),
+    ),
+  );
+}
+
+/**
+ *  Implements hook_menu().
+ */
+function user_settings_menu() {
+
+  $items = array();
+
+  $items['user/%/settings'] = array(
+    'title' => 'User settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_settings_form', 1),
+    'access arguments' => array('user settings'),
+    'type' => MENU_LOCAL_TASK,
+  );
+
+  return $items;
+
+}
+
+/**
+ *  Implements hook_admin_paths().
+ */
+function user_settings_admin_paths() {
+
+  $paths = array(
+    'user/*/settings' => TRUE,
+  );
+
+  return $paths;
+
+}
+
+/**
+ *  Build the user settings form.
+ */
+function user_settings_form($form, $form_state) {
+
+  global $user;
+
+  /**
+   *  @see get_db_values().
+   */
+  $select = get_db_values($user->uid);
+
+  // Get list of fonts from json file.
+  $path = drupal_get_path('module', 'user_settings');
+  $font_file = file_get_contents($path . '/fonts/fonts.json');
+  $fonts = drupal_json_decode($font_file);
+
+  // Build array with font names.
+  $fonts_array = array();
+  foreach ($fonts['fonts'] as $key => $font) {
+    $font_family = $font['family'];
+    $fonts_array[$font_family] = $font_family;
+  }
+
+  // Add farbtastic scripts and css.
+  drupal_add_js('misc/farbtastic/farbtastic.js');
+  drupal_add_js(drupal_get_path('module', 'user_settings') . '/js/scripts.js');
+  drupal_add_css('misc/farbtastic/farbtastic.css');
+
+  // Font settings fieldset.
+  $form['font'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Font settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#tree' => TRUE,
+  );
+
+  // Select font family.
+  $form['font']['font_family'] = array(
+    '#type' => 'radios',
+    '#title' => t('Font family'),
+    '#options' => $fonts_array,
+    '#default_value' => $select['font_family'],
+  );
+
+  // Select font size.
+  $form['font']['font_size'] = array(
+    '#type' => 'select',
+    '#title' => t('Font size'),
+    '#options' => array(
+      '12' => '12',
+      '14' => '14',
+      '16' => '16',
+      '18' => '18',
+    ),
+    '#default_value' => (isset($select['font_size']) ? $select['font_size'] : 16),
+  );
+
+  // Color settings fieldset.
+  $form['color'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Color settings'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#tree' => TRUE,
+  );
+
+  // Select color.
+  $form['color']['color_heading'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Heading color'),
+    '#prefix' => '<div id="color-picker"></div>',
+    '#attributes' => array(
+      'class' => array('color'),
+    ),
+    '#size' => 30,
+    '#default_value' => (isset($select['color_heading']) ? $select['color_heading'] : '#000'),
+  );
+
+  $form['color']['color_text'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Text color'),
+    '#attributes' => array(
+      'class' => array('color'),
+    ),
+    '#size' => 30,
+    '#default_value' => (isset($select['color_text']) ? $select['color_text'] : '#000'),
+  );
+
+  // Submit form.
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save settings'),
+    '#submit' => array('user_settings_form_submit'),
+  );
+
+  return $form;
+
+}
+
+/**
+ *  Form submit actions.
+ */
+function user_settings_form_submit($form, &$form_state) {
+
+  global $user;
+
+  // Build user settings obejct.
+  $user_settings = new stdClass();
+  $user_settings->uid = $user->uid;
+  $user_settings->font_family = $form_state['values']['font']['font_family'];
+  $user_settings->font_size = $form_state['values']['font']['font_size'];
+  $user_settings->color_heading = $form_state['values']['color']['color_heading'];
+  $user_settings->color_text = $form_state['values']['color']['color_text'];
+
+  // Database handler.
+  user_settings_save($user_settings);
+
+  drupal_set_message(t('Settings saved.'));
+
+}
+
+/**
+ *  Save user settings.
+ */
+function user_settings_save($user_settings) {
+
+  // Check if user has values stored in database.
+  $select = db_select('user_settings', 'uid')
+    ->fields('uid')
+    ->condition('uid', $user_settings->uid)
+    ->execute();
+
+  $count = $select->rowCount();
+
+  if ($count == 0) {
+
+    $insert = db_insert('user_settings')
+      ->fields(array(
+        'uid' => $user_settings->uid,
+        'font_family' => $user_settings->font_family,
+        'font_size' => $user_settings->font_size,
+        'color_heading' => $user_settings->color_heading,
+        'color_text' => $user_settings->color_text,
+      ))
+      ->execute();
+
+  } else {
+
+    $update = db_update('user_settings')
+      ->fields(array(
+        'font_family' => $user_settings->font_family,
+        'font_size' => $user_settings->font_size,
+        'color_heading' => $user_settings->color_heading,
+        'color_text' => $user_settings->color_text,
+      ))
+      ->condition('uid', $user_settings->uid)
+      ->execute();
+
+  }
+
+}
+
+/**
+ *  Implements template_preprocess_html().
+ */
+function user_settings_preprocess_html(&$variables) {
+
+  /**
+   *  Check if current entity type is node or user,
+   *  and if second argument is numeric.
+   */
+  $entity_type = array('node', 'user');
+  if (in_array(arg(0), $entity_type) && is_numeric(arg(1))) {
+
+    // Get UID for current entity.
+    $entity = entity_load(arg(0), array('nid' => arg(1)));
+    $uid = $entity[arg(1)]->uid;
+
+    /**
+     *  @see apply_user_settings().
+     */
+    apply_user_settings($uid);
+
+  /**
+   *  Check for second argument if page is not a node.
+   */
+  } elseif (!node_is_page(arg(1)) && is_numeric(arg(1))) {
+
+    /**
+     *  @see apply_user_settings().
+     */
+    apply_user_settings(arg(1));
+
+  }
+
+}
+
+/**
+ *  Apply user settings.
+ */
+function apply_user_settings($uid) {
+
+  /**
+   *  @see get_db_values().
+   */
+  $select = get_db_values($uid);
+
+  // Get list of fonts from json file.
+  $path = drupal_get_path('module', 'user_settings');
+  $font_file = file_get_contents($path . '/fonts/fonts.json');
+  $fonts = drupal_json_decode($font_file);
+
+  // Build array with font names and corresponding urls.
+  $fonts_array = array();
+  foreach ($fonts['fonts'] as $key => $font) {
+    $font_family = $font['family'];
+    $font_url = $font['url'];
+    $fonts_array[$font_family] = $font_url;
+  }
+
+  // @font-face import url.
+  $import_url = '';
+  if (isset($select['font_family'])) {
+    $import_url = $fonts_array[$select['font_family']];
+  }
+
+  if (isset($select['font_size'])) {
+
+    // Add inline CSS.
+    drupal_add_css(
+      '@import url(' . $import_url . ');' .
+      'body {' .
+        'color: ' . $select['color_text'] . ';' .
+        'font-size: ' . $select['font_size'] / 16 . 'em;' .
+      '}' .
+      'h1,h2,h3,h4,h5,h6 {' .
+        'color: ' . $select['color_heading'] . ';' .
+        'font-family: ' . $select['font_family'] . ';' .
+      '}',
+      array(
+        'type' => 'inline',
+        'media' => 'all',
+      )
+    );
+
+  }
+
+}
+
+/**
+ *  Get values stored in the database.
+ */
+function get_db_values($uid) {
+
+  $select = db_select('user_settings', 'u')
+    ->fields('u', array('font_size', 'font_family', 'color_heading', 'color_text'))
+    ->condition('uid', $uid, '=')
+    ->execute()
+    ->fetchAssoc();
+
+  return $select;
+
+}

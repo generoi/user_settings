@@ -176,3 +176,38 @@ function user_settings_form($form, $form_state, $account) {
 
   return $form;
 }
+
+/**
+ *  Form submit actions.
+ */
+function user_settings_form_submit($form, &$form_state) {
+  $account = $form['#account'];
+
+  $settings = (object) array_merge(
+    (array) $form_state['values']['font'],
+    (array) $form_state['values']['color']
+  );
+  $settings->uid = $account->uid;
+
+  // Database handler.
+  user_settings_save($settings);
+  drupal_set_message(t('Settings saved.'));
+}
+
+/**
+ * Reset user settings.
+ */
+function user_settings_form_reset($form, &$form_state) {
+  $account = $form['#account'];
+
+  $query = db_select('user_settings', 'u')
+    ->fields('u', array('fid'))
+    ->condition('u.uid', $account->uid, '=');
+
+  $result = $query->execute()->fetchAssoc();
+
+  $file = file_load($result['fid']);
+  if (file_delete($file)) {
+    drupal_set_message(t('Settings restored.'));
+  };
+}

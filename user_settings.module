@@ -1,47 +1,48 @@
 <?php
-
 /**
- * @todo Clean up code.
- * @todo Fix permissions.
- * @todo Form validation.
- */
-
-/**
- *  Ipmlements hook_permission().
+ *  Implements hook_permission().
  */
 function user_settings_permission() {
   return array(
-    'user settings' => array(
+    'edit user settings' => array(
       'title' => t('Edit user settings'),
+    ),
+    'administer user settings' => array(
+      'title' => t('Administer user settings'),
     ),
   );
 }
-
 /**
- * Access callback for user account editing.
- */
-function user_settings_edit_access($account) {
-  return (($GLOBALS['user']->uid == $account->uid) || user_access('user settings')) && $account->uid > 0;
-}
-
-/**
- *  Implements hook_menu().
+ * Implements hook_menu().
  */
 function user_settings_menu() {
-  $items = array();
-
   $items['user/%user/settings'] = array(
     'title' => 'User settings',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('user_settings_form', 1),
-    'access callback' => 'user_settings_edit_access',
-    'access arguments' => array(1),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('edit', 1),
     'type' => MENU_LOCAL_TASK,
     'file' => 'user_settings.pages.inc',
   );
 
   return $items;
 }
+
+/**
+ * Access callback for user account editing.
+ */
+function user_settings_access($op, $account) {
+  if (user_access('administer user settings')) {
+    return TRUE;
+  }
+  switch ($op) {
+    case 'edit';
+      return ($GLOBALS['user']->uid == $account->uid) || user_access("$op user settings");
+  }
+  return FALSE;
+}
+
 
 /**
  *  Implements hook_admin_paths().
@@ -55,24 +56,32 @@ function user_settings_admin_paths() {
 }
 
 /**
- *  Form submit actions.
+ * Implements hook_init().
  */
-function user_settings_form_submit($form, &$form_state) {
-  $account = $form['#account'];
-
-  $settings = (object) array_merge(
-    (array) $form_state['values']['font'],
-    (array) $form_state['values']['color']
-  );
-  $settings->uid = $account->uid;
-
-  // Database handler.
-  user_settings_save($settings);
-  drupal_set_message(t('Settings saved.'));
+function user_settings_init() {
+  // Add a button to the Panels IPE toolbar.
+  if (module_exists('multisite') && module_exists('panels_ipe')) {
+    $multisite = multisite_load_current();
+    $user = user_load($multisite->uid);
+    if (user_settings_access('edit', $user)) {
+      $button = array(
+        '#type' => 'link',
+        '#title' => 'Site settings',
+        '#href' => "user/$user->uid/settings",
+        '#id' => 'panels-ipe-user-settings',
+        '#attributes' => array(
+          'class' => array('panels-ipe-pseudobutton'),
+        ),
+        '#prefix' => '<div class="panels-ipe-pseudobutton-container">',
+        '#suffix' => '</div>',
+      );
+      panels_ipe_toolbar_add_button('user-settings', 'panels-ipe-user-settings', $button);
+    }
+  }
 }
 
 /**
- *  Save user settings.
+ * Save user settings.
  */
 function user_settings_save($user_settings) {
 
@@ -156,53 +165,25 @@ function user_settings_save($user_settings) {
 }
 
 /**
- * Reset user settings.
- */
-function user_settings_form_reset($form, &$form_state) {
-  $account = $form['#account'];
-
-  $query = db_select('user_settings', 'u')
-    ->fields('u', array('fid'))
-    ->condition('u.uid', $account->uid, '=');
-
-  $result = $query->execute()->fetchAssoc();
-
-  $file = file_load($result['fid']);
-  if (file_delete($file)) {
-    drupal_set_message(t('Settings restored.'));
-  };
-}
-
-/**
- *  Implements template_preprocess_html().
+ * Implements template_preprocess_html().
  */
 function user_settings_preprocess_html(&$variables) {
-  /**
-   *  Check if current entity type is node or user,
-   *  and if second argument is numeric.
-   */
+  // Check if current entity type is node or user, and if second argument is
+  // numeric.
   $entity_type = array('node', 'user');
   if (in_array(arg(0), $entity_type) && is_numeric(arg(1))) {
-
     // Get UID for current entity.
     $entity = entity_load(arg(0), array('nid' => arg(1)));
     $uid = $entity[arg(1)]->uid;
 
-    /**
-     *  @see apply_user_settings().
-     */
+    // @see apply_user_settings().
     apply_user_settings($uid);
 
-  /**
-   *  Check for second argument if page is not a node.
-   */
-  } elseif (!node_is_page(arg(1)) && is_numeric(arg(1))) {
-
-    /**
-     *  @see apply_user_settings().
-     */
+  }
+  // Check for second argument if page is not a node.
+  elseif (!node_is_page(arg(1)) && is_numeric(arg(1))) {
+    // @see apply_user_settings().
     apply_user_settings(arg(1));
-
   }
 }
 
@@ -210,9 +191,7 @@ function user_settings_preprocess_html(&$variables) {
  *  Apply user settings.
  */
 function apply_user_settings($uid) {
-  /**
-   *  @see get_db_values().
-   */
+  // @see get_db_values().
   $select = get_db_values($uid);
   $settings = drupal_json_decode($select['settings']);
   $fonts_array = get_fonts('url');
@@ -232,7 +211,7 @@ function apply_user_settings($uid) {
 }
 
 /**
- *  Get values stored in the database.
+ * Get values stored in the database.
  */
 function get_db_values($uid) {
   $result = '';
@@ -249,8 +228,8 @@ function get_db_values($uid) {
 }
 
 /**
- *  Get list of fonts from JSON file.
- *  Build array with font names and corresponding urls.
+ * Get list of fonts from JSON file.
+ * Build array with font names and corresponding urls.
  */
 function get_fonts($pair) {
   $fonts_array = array();

@@ -1,10 +1,9 @@
 <?php
 
 /**
- *  Implements hook_schema().
+ * Implements hook_schema().
  */
 function user_settings_schema() {
-
   $schema['user_settings'] = array(
     'description' => 'The table for user settings',
     'fields' => array(

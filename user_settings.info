@@ -3,6 +3,4 @@ description = Description
 core = 7.x
 package = User
 dependencies[] = user
-
-files[] = user_settings.module
-files[] = user_settings.pages.inc
+dependencies[] = ctools

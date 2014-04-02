@@ -4,35 +4,77 @@
  * Implements hook_schema().
  */
 function user_settings_schema() {
-  $schema['user_settings'] = array(
-    'description' => 'The table for user settings',
-    'fields' => array(
-      'uid' => array(
-        'type' => 'int',
-        'length' => 10,
-        'not null' => TRUE,
-      ),
-      'fid' => array(
-        'description' => 'File ID',
-        'type' => 'int',
-        'length' => 5,
-        'not null' => FALSE,
-      ),
-      'settings' => array(
-        'description' => 'User settings object',
-        'type' => 'blob',
-        'size' => 'normal',
+  $schema['user_settings_properties'] = array(
+    'description' => 'Table storing configurable user settings properties',
+    'export' => array(
+      'key' => 'machine_name',
+      'identifier' => 'property',
+      'primary key' => 'machine_name',
+      'default hook' => 'user_settings_properties_info',
+      'can disable' => TRUE,
+      'load callback' => 'user_settings_property_load',
+      'load multiple callback' => 'user_settings_property_load_multiple',
+      'load all callback' => 'user_settings_property_load_all',
+      'export callback' => 'user_settings_property_export',
+      'list callback' => 'user_settings_property_export_list',
+      'api' => array(
+        'owner' => 'user_settings',
+        'api' => 'user_settings',
+        'minimum_version' => 1,
+        'maximum_version' => 1,
+        'current_version' => 1,
       ),
     ),
-    'foreign keys' => array(
-      'node_author' => array(
-        'table' => 'users',
-        'columns' => array(
-          'uid' => 'uid',
-        ),
+    'fields' => array(
+      'oid' => array(
+        'description' => 'Exportable object ID.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'no export' => TRUE,
       ),
+      'machine_name' => array(
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'description' => 'Unique machine name for properties',
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'description' => 'Human readable name for this property',
+      ),
+      'description' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'Description for this property',
+        'default' => '',
+      ),
+      'data' => array(
+        'type' => 'blob',
+        'size' => 'big',
+        'not null' => TRUE,
+        'serialize' => TRUE,
+        'object default' => array(),
+        'description' => 'Configuration data',
+      ),
+    ),
+    'primary key' => array('oid'),
+    'unique keys' => array(
+      'machine_name' => array('machine_name'),
     ),
   );
 
   return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function user_settings_uninstall() {
+  variable_del('user_settings');
+  variable_del('user_settings_stylesheet');
+  variable_del('user_settings_exclude_paths');
 }

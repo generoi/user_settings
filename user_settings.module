@@ -1,4 +1,16 @@
 <?php
+
+define('USER_SETTINGS_EXCLUDE_PATHS', 'admin/*');
+
+/**
+ * Implements hook_ctools_plugin_api().
+ */
+function user_settings_ctools_plugin_api($owner, $api) {
+  if ($owner == 'user_settings' && $api == 'user_settings') {
+    return array('version' => 1);
+  }
+}
+
 /**
  *  Implements hook_permission().
  */
@@ -26,19 +38,250 @@ function user_settings_menu() {
     'file' => 'user_settings.pages.inc',
   );
 
+  // Page with exportable objects list.
+  $items['admin/structure/user-settings'] = array(
+    'title' => 'User Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_settings_property_list_form'),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+  );
+
+  $items['admin/structure/user-settings/list'] = array(
+    'title' => 'User Settings properties',
+    'file' => 'user_settings.admin.inc',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 0,
+  );
+
+  // Create new exportable object.
+  $items['admin/structure/user-settings/create'] = array(
+    'title' => 'Create user settings property',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_settings_property_edit_form'),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+    'type' => MENU_LOCAL_ACTION,
+  );
+
+  // Import exportable object.
+  $items['admin/structure/user-settings/import'] = array(
+    'title' => 'Import user settings property',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_settings_property_import_form'),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+    'type' => MENU_LOCAL_ACTION,
+  );
+
+  // Export exportable object.
+  $items['admin/structure/user-settings/%user_settings_property/export'] = array(
+    'title' => 'Export user settings property',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_settings_property_export_form', 3),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+  );
+
+  // Edit exportable object.
+  $items['admin/structure/user-settings/%user_settings_property/edit'] = array(
+    'title' => 'Edit user settings property',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_settings_property_edit_form', 3),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+  );
+
+  // Delete exportable object.
+  $items['admin/structure/user-settings/%user_settings_property/delete'] = array(
+    'title' => 'Delete user settings property',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('user_settings_property_delete_form', 3),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+  );
+
+  // Disable exportable object.
+  $items['admin/structure/user-settings/%user_settings_property/disable'] = array(
+    'title' => 'Disable user settings property',
+    'page callback' => 'user_settings_property_disable_page',
+    'page arguments' => array(3),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+  );
+
+  // Enable exportable object.
+  $items['admin/structure/user-settings/%user_settings_property/enable'] = array(
+    'title' => 'Enable user settings property',
+    'page callback' => 'user_settings_property_enable_page',
+    'page arguments' => array(3),
+    'access callback' => 'user_settings_access',
+    'access arguments' => array('administer'),
+    'file' => 'user_settings.admin.inc',
+  );
+
   return $items;
+}
+
+/**
+ * Implementats hook_theme().
+ */
+function user_settings_theme() {
+  return array(
+    'user_settings_property_list_form' => array(
+      'render element' => 'form',
+      'file' => 'user_settings.theme.inc',
+    ),
+  );
+}
+
+/**
+ * Save exportable object.
+ *
+ * @param $exportable_object
+ *   Object that should be saved or updated.
+ * @return int
+ *   Saving result.
+ */
+function user_settings_property_save($property) {
+  ctools_include('export');
+
+  // // Fill data values for checkbox (custom form value) if exists.
+  // if (!empty($property->checkbox)) {
+  //   $property->data['checkbox'] = $property->checkbox;
+  // }
+
+  // // Fill data values for user notes (custom form value) if exists.
+  // if (!empty($property->notes)) {
+  //   $property->data['notes'] = $property->notes;
+  // }
+
+  $save_result = ctools_export_crud_save('user_settings_properties', $property);
+  return $save_result;
+}
+
+/**
+ * Delete exportable object from database by object machine name.
+ *
+ * @param $name
+ *   Object machine name.
+ */
+function user_settings_property_delete($name) {
+  $property = user_settings_property_load($name);
+  ctools_export_crud_delete('user_settings_properties', $property);
+}
+
+/**
+ * Load exportable object from database by object machine name.
+ *
+ * @param $name
+ *   Object machine name.
+ * @return object|bool
+ *   Loaded object or FALSE if object was not loaded.
+ */
+function user_settings_property_load($name) {
+  ctools_include('export');
+  $result = ctools_export_load_object('user_settings_properties', 'names', array($name));
+
+  if (!empty($result[$name])) {
+    $property = user_settings_property_load_prepare($result[$name]);
+  }
+
+  return !empty($property) ? $property : FALSE;
+}
+
+/**
+ * Load multiple exportable objects by array with machine names.
+ *
+ * @param $names
+ *   Array with objects machine names.
+ * @return array
+ *   Loaded exportable objects.
+ */
+function user_settings_property_load_multiple($names) {
+  ctools_include('export');
+  $result = ctools_export_load_object('user_settings_properties', 'names', $names);
+  $result = array_map('user_settings_property_load_prepare', $result);
+  return $result;
+}
+
+/**
+ * Load all exportable objects from database.
+ *
+ * @return array
+ *   Loaded exportable objects.
+ */
+function user_settings_property_load_all() {
+  ctools_include('export');
+  $result = ctools_export_load_object('user_settings_properties', 'all');
+  $result = array_map('user_settings_property_load_prepare', $result);
+  return $result;
+}
+
+/**
+ * Prepare exportable object for correct processing.
+ *
+ * @param $property
+ *   Exportable object loaded from database.
+ * @return object
+ *   Prepared exportable object.
+ */
+function user_settings_property_load_prepare($property) {
+  $property->disabled = isset($property->disabled) ? $property->disabled : FALSE;
+  $property->is_overwritten = ($property->export_type == (EXPORT_IN_DATABASE | EXPORT_IN_CODE));
+  return $property;
+}
+
+/**
+ * Return code that presents exportable object.
+ *
+ * @param $property
+ *   Exportable object loaded from database.
+ * @param $indent
+ *   Variable shows how much code lines should be intended for hierarchical structure.
+ * @return string
+ *   Exportable code.
+ */
+function user_settings_export($property, $indent) {
+  return ctools_export_object('user_settings_properties', $property, $indent);
+}
+
+/**
+ * Provide list of exportable objects for exportable interface.
+ * Example: Features of CTools bulk export.
+ *
+ * @return array
+ *   Array with available exportable objects.
+ */
+function user_settings_property_export_list() {
+  $result = user_settings_property_load_all();
+
+  $list = array();
+  foreach ($result as $property) {
+    $placeholders =  array('@name' => $property->name, '@machine_name' => $property->machine_name);
+    $list[$property->machine_name] =  format_string('@name (@machine_name)', $placeholders);
+  }
+
+  return $list;
 }
 
 /**
  * Access callback for user account editing.
  */
-function user_settings_access($op, $account) {
+function user_settings_access($op, $account = NULL) {
   if (user_access('administer user settings')) {
     return TRUE;
   }
   switch ($op) {
     case 'edit';
-      return ($GLOBALS['user']->uid == $account->uid) || user_access("$op user settings");
+      return (is_object($account) && $GLOBALS['user']->uid == $account->uid) || user_access("$op user settings");
   }
   return FALSE;
 }
@@ -59,8 +302,19 @@ function user_settings_admin_paths() {
  * Implements hook_init().
  */
 function user_settings_init() {
+  if (!path_is_admin(current_path()) && ($stylesheet = variable_get('user_settings_stylesheet'))) {
+    $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
+    $page_match = drupal_match_path($path, variable_get('user_settings_exclude_paths', USER_SETTINGS_EXCLUDE_PATHS));
+    if ($path != $_GET['q']) {
+      $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
+      $page_match = $page_match || drupal_match_path($path, variable_get('user_settings_exclude_paths', USER_SETTINGS_EXCLUDE_PATHS));
+    }
+    if (!$page_match) {
+      drupal_add_css($stylesheet);
+    }
+  }
   // Add a button to the Panels IPE toolbar.
-  if (module_exists('multisite') && module_exists('panels_ipe')) {
+  if (module_exists('multisite') && module_exists('panels_ipe') && !path_is_admin(current_path())) {
     $multisite = multisite_load_current();
     $user = user_load($multisite->uid);
     if (user_settings_access('edit', $user)) {
@@ -81,176 +335,205 @@ function user_settings_init() {
 }
 
 /**
- * Save user settings.
+ * Load a widget definition or all widgets.
  */
-function user_settings_save($user_settings) {
+function user_settings_get_widgets($widget = NULL) {
+  $widgets = &drupal_static(__FUNCTION__);
+  if (!isset($widgets)) {
+    $widgets = module_invoke_all('user_settings_widget_info');
+  }
+  return isset($widget) ? $widgets[$widget] : $widgets;
+}
 
-  // Check if user has values stored in database.
-  $query = db_select('user_settings', 'u')
-    ->fields('u')
-    ->fields('n', array('uid', 'name'))
-    ->condition('u.uid', $user_settings->uid);
+/**
+ * Implements hook_user_settings_widget_info().
+ */
+function user_settings_user_settings_widget_info() {
+  return array(
+    'color' => array(
+      'title' => t('Color picker'),
+      'setting callback' => 'user_settings_widget_color',
+    ),
+    'select' => array(
+      'title' => t('Select list'),
+      'setting callback' => 'user_settings_widget_select',
+    ),
+    'upload' => array(
+      'title' => t('Image upload'),
+      'setting callback' => 'user_settings_widget_upload',
+    ),
+    'checkbox' => array(
+      'title' => t('Checkbox'),
+      'setting callback' => 'user_settings_widget_checkbox',
+    ),
+  );
+}
 
-  $query->join('users', 'n', 'u.uid=n.uid');
-  $result = $query->execute();
+function user_settings_widget_color($value, $property, &$form) {
+  static $attached = FALSE;
+  if (!$attached) {
+    $form['#attached']['library'][] = array('system', 'farbtastic');
+    $form['#attached']['js'][] = drupal_get_path('module', 'user_settings') . '/js/user_settings.js';
+    $form['#attached']['css'][] = drupal_get_path('module', 'color') . '/color.css';
+  }
 
-  $data = '';
-  $data .=
-  'html {
-    color: ' . $user_settings->color_text . ';
-    font-family: ' . $user_settings->font_family . ';
-    font-size: ' . $user_settings->font_size / 16 . 'em;
+  if (!empty($property->data['group'])) {
+    $group_name = $property->data['group'];
+    $group = drupal_clean_css_identifier($group_name);
+    // @TODO multiple groups unique ids
+    $form[$group]['color_picker'] = array('#weight' => -1, '#markup' => '<div id="color-picker"></div>');
   }
-  html body {
-    background: ' . $user_settings->background . ';
+  else {
+    $form['color_picker'] = array('#weight' => -1, '#markup' => '<div id="color-picker"></div>');
   }
-  h1, h2, h3, h4, h5, h6 {
-    color: ' . $user_settings->color_heading . ';
-    font-family: ' . $user_settings->heading_font_family . ';
-  }
-  #page {
-    background: ' . $user_settings->content_background . ';
-  }
-  div.pane-bloggers-sidebar {
-    background: ' . $user_settings->sidebar_background . ';
-    color: ' . $user_settings->sidebar_text_color . ';
-  }
-  div.pane-bloggers-sidebar a {
-    color: ' . $user_settings->link_color . ';
-  }
-  div.pane-bloggers-sidebar a:hover {
-    color: ' . $user_settings->link_hover_color . ';
-  }
-  div.field-name-body {
-    color: ' . $user_settings->color_text . ';
-    font-family: ' . $user_settings->font_family . ';
-    font-size: ' . $user_settings->font_size / 16 . 'em;
-  }
-  a {
-    color: ' . $user_settings->link_color . ';
-  }
-  a:hover {
-    color: ' . $user_settings->link_hover_color . ';
-  }';
 
-  $record = $result->fetchAssoc();
+  $element = array(
+    '#type' => 'textfield',
+    '#title' => $property->name,
+    '#attributes' => array('class' => array('color')),
+    '#size' => 10,
+    '#default_value' => $value,
+  );
+  return $element;
+}
 
-  $user_name = strtolower($record['name']);
+function user_settings_widget_select($value, $property, $form) {
+  $options = explode(',', $property->data['options']);
+  foreach ($options as $option) {
+    list($machine_name, $name) = explode('|', $option);
+    $option_list[trim($machine_name)] = trim($name);
+  }
+
+  $element = array(
+    '#type' => 'select',
+    '#title' => $property->name,
+    '#options' => $option_list,
+    '#default_value' => $value,
+  );
+  return $element;
+}
+
+function user_settings_widget_upload($value, $property, $form) {
+  $element = array(
+  );
+  return $element;
+}
+
+function user_settings_widget_checkbox($value, $property, $form) {
+  $element = array(
+    '#type' => 'checkbox',
+    '#title' => $property->name,
+    '#default_value' => $value,
+  );
+  return $element;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function user_settings_form_user_settings_property_edit_form_alter(&$form, &$form_state) {
+  $exportable_object = $form['#exportable_object'];
+  $form['data']['options'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Options'),
+    '#description' => t('Comma separated options in the form value|Human readable'),
+    '#default_value' => isset($exportable_object->data['options']) ? $exportable_object->data['options'] : '',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="data[type]"]' => array('value' => 'select'),
+      ),
+    ),
+  );
+  $form['data']['on_state'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Checked state property value'),
+    '#default_value' => isset($exportable_object->data['on_state']) ? $exportable_object->data['on_state'] : '',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="data[type]"]' => array('value' => 'checkbox'),
+      ),
+    ),
+  );
+  $form['data']['off_state'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Unhecked state property value'),
+    '#default_value' => isset($exportable_object->data['off_state']) ? $exportable_object->data['off_state'] : '',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="data[type]"]' => array('value' => 'checkbox'),
+      ),
+    ),
+  );
+}
+
+/**
+ * Write a stylesheet file to the filesystem based on a settings file.
+ */
+function user_settings_build_stylesheet($settings) {
+  $properties = user_settings_property_load_all();
+  $rules = array();
+  foreach ($properties as $machine_name => $property) {
+    $value = $settings['properties'][$machine_name];
+    $rule = new stdClass();
+    $rule->selector = $property->data['selector'];
+    $rule->property = $property->data['property'];
+    $rule->value = $value;
+
+    $context = array(
+      'machine_name' => $machine_name,
+      'property' => $property,
+    );
+
+    // Let other modules alter the rules.
+    drupal_alter('user_settings_stylesheet_rule', $rule, $context);
+    $rules[] = "$rule->selector { $rule->property: $rule->value; }";
+  }
   $dir = 'public://user_settings_styles';
-  $new_dir = file_prepare_directory($dir, FILE_CREATE_DIRECTORY);
-  $dest = 'public://user_settings_styles/' . $user_name . $user_settings->uid . '.css';
-  $file = file_save_data($data, $dest, FILE_EXISTS_REPLACE);
-
-  if ($result->rowCount() == 0) {
-
-    $insert = db_insert('user_settings')
-      ->fields(array(
-        'uid' => $user_settings->uid,
-        'fid' => $file->fid,
-        'settings' => drupal_json_encode($user_settings),
-      ))
-      ->execute();
-
-  } else {
-
-    $update = db_update('user_settings')
-      ->fields(array(
-        'fid' => $file->fid,
-        'settings' => drupal_json_encode($user_settings),
-      ))
-      ->condition('uid', $user_settings->uid)
-      ->execute();
-
+  $content = implode('', $rules);
+  if (file_prepare_directory($dir, FILE_CREATE_DIRECTORY)) {
+    $destination = $dir . '/stylesheet.css';
+    $file = file_save_data($content, $destination, FILE_EXISTS_REPLACE);
+    return $file;
   }
+  return FALSE;
 }
 
 /**
- * Implements template_preprocess_html().
+ * Save a settings array for the current site and generate the stylesheet.
  */
-function user_settings_preprocess_html(&$variables) {
-  // Check if current entity type is node or user, and if second argument is
-  // numeric.
-  $entity_type = array('node', 'user');
-  if (in_array(arg(0), $entity_type) && is_numeric(arg(1))) {
-    // Get UID for current entity.
-    $entity = entity_load(arg(0), array('nid' => arg(1)));
-    $uid = $entity[arg(1)]->uid;
-
-    // @see apply_user_settings().
-    apply_user_settings($uid);
-
+function user_settings_save($settings) {
+  variable_set('user_settings', $settings);
+  if ($file = user_settings_build_stylesheet($settings)) {
+    variable_set('user_settings_stylesheet', $file->uri);
   }
-  // Check for second argument if page is not a node.
-  elseif (!node_is_page(arg(1)) && is_numeric(arg(1))) {
-    // @see apply_user_settings().
-    apply_user_settings(arg(1));
-  }
+  dpm($file);
 }
 
 /**
- *  Apply user settings.
+ * Load a settings array for the current site.
  */
-function apply_user_settings($uid) {
-  // @see get_db_values().
-  $select = get_db_values($uid);
-  $settings = drupal_json_decode($select['settings']);
-  $fonts_array = get_fonts('url');
-
-  /* @font-face import url. */
-  $import_url = '';
-  if (isset($settings['heading_font_family'])) {
-    $import_url .= '@import url(' . $fonts_array[$settings['heading_font_family']] . ');' . PHP_EOL;
-  }
-  if (isset($settings['font_family'])) {
-    $import_url .= '@import url(' . $fonts_array[$settings['font_family']] . ');' . PHP_EOL;
-  }
-
-  $user_name = strtolower($select['name']);
-  drupal_add_css($import_url, array('type' => 'inline', 'preprocess' => FALSE));
-  drupal_add_css('public://user_settings_styles/' . $user_name . $select['uid'] . '.css');
-}
-
-/**
- * Get values stored in the database.
- */
-function get_db_values($uid) {
-  $result = '';
-
-  $query = db_select('user_settings', 'u')
-    ->fields('u', array('uid', 'fid', 'settings'))
-    ->fields('n', array('name'))
-    ->condition('u.uid', $uid, '=');
-
-  $query->join('users', 'n', 'u.uid=n.uid');
-  $result = $query->execute()->fetchAssoc();
-
-  return $result;
-}
-
-/**
- * Get list of fonts from JSON file.
- * Build array with font names and corresponding urls.
- */
-function get_fonts($pair) {
-  $fonts_array = array();
-
-  $path = drupal_get_path('module', 'user_settings');
-  $font_file = file_get_contents($path . '/fonts/fonts.json');
-  $fonts = drupal_json_decode($font_file);
-
-  if ($pair == 'url') {
-    foreach ($fonts['fonts'] as $key => $font) {
-      $font_family = $font['family'];
-      $font_url = $font['url'];
-      $fonts_array[$font_family] = $font_url;
+function user_settings_load() {
+  if (!($settings = variable_get('user_settings', FALSE))) {
+    $properties = user_settings_property_load_all();
+    $settings = array('properties' => array());
+    foreach ($properties as $machine_name => $property) {
+      $settings['properties'][$machine_name] = $property->data['default'];
     }
   }
-  if ($pair == 'family') {
-    foreach ($fonts['fonts'] as $key => $font) {
-      $font_family = $font['family'];
-      $fonts_array[$font_family] = $font_family;
+  return $settings;
+}
+
+/**
+ * Reset user settings and delete the stylesheets file.
+ */
+function user_settings_delete() {
+  variable_del('user_settings');
+
+  if ($file_uri = variable_get('user_settings_stylesheet')) {
+    $file = file_load_multiple(array(), array('uri' => $file_uri));
+    if ($file = reset($file)) {
+      file_delete($file, TRUE);
+      variable_del('user_settings_stylesheet');
     }
   }
-
-  return $fonts_array;
 }

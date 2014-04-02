@@ -354,6 +354,10 @@ function user_settings_user_settings_widget_info() {
       'title' => t('Color picker'),
       'setting callback' => 'user_settings_widget_color',
     ),
+    'typeface' => array(
+      'title' => t('Typeface selector'),
+      'setting callback' => 'user_settings_widget_typeface',
+    ),
     'select' => array(
       'title' => t('Select list'),
       'setting callback' => 'user_settings_widget_select',
@@ -375,6 +379,7 @@ function user_settings_widget_color($value, $property, &$form) {
     $form['#attached']['library'][] = array('system', 'farbtastic');
     $form['#attached']['js'][] = drupal_get_path('module', 'user_settings') . '/js/user_settings.js';
     $form['#attached']['css'][] = drupal_get_path('module', 'color') . '/color.css';
+    $attached = TRUE;
   }
 
   if (!empty($property->data['group'])) {
@@ -419,6 +424,27 @@ function user_settings_widget_upload($value, $property, $form) {
   return $element;
 }
 
+function user_settings_widget_typeface($value, $property, &$form) {
+  $options = explode(',', $property->data['typeface_options']);
+  $urls = array();
+  foreach ($options as $option) {
+    list($url, $name) = explode('|', $option);
+    $url = trim($url);
+    $name = trim($name);
+    $option_list[$name] = $name;
+    $form['#attached']['css'][$url] = array('type' => 'external');
+  }
+
+  $element = array(
+    '#type' => 'radios',
+    '#title' => $property->name,
+    '#options' => $option_list,
+    '#default_value' => $value,
+    '#attributes' => array('class' => array('select-font')),
+  );
+  return $element;
+}
+
 function user_settings_widget_checkbox($value, $property, $form) {
   $element = array(
     '#type' => 'checkbox',
@@ -441,6 +467,17 @@ function user_settings_form_user_settings_property_edit_form_alter(&$form, &$for
     '#states' => array(
       'visible' => array(
         ':input[name="data[type]"]' => array('value' => 'select'),
+      ),
+    ),
+  );
+  $form['data']['typeface_options'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Options'),
+    '#description' => t('Comma separated options in the form http://fonts.googleapis.com/css?family=Belleza|Belleza'),
+    '#default_value' => isset($exportable_object->data['typeface_options']) ? $exportable_object->data['typeface_options'] : '',
+    '#states' => array(
+      'visible' => array(
+        ':input[name="data[type]"]' => array('value' => 'typeface'),
       ),
     ),
   );
@@ -482,11 +519,15 @@ function user_settings_build_stylesheet($settings) {
     $context = array(
       'machine_name' => $machine_name,
       'property' => $property,
+      'widget' => $property->data['type'],
+      'rules' => &$rules,
     );
 
     // Let other modules alter the rules.
     drupal_alter('user_settings_stylesheet_rule', $rule, $context);
-    $rules[] = "$rule->selector { $rule->property: $rule->value; }";
+    if ($rule->value) {
+      $rules[] = "$rule->selector { $rule->property: $rule->value; }";
+    }
   }
   $dir = 'public://user_settings_styles';
   $content = implode('', $rules);
@@ -499,6 +540,28 @@ function user_settings_build_stylesheet($settings) {
 }
 
 /**
+ * Implements hook_user_settings_stylesheet_rule_alter().
+ */
+function user_settings_user_settings_stylesheet_rule_alter($rule, $context) {
+  if ($context['widget'] == 'typeface') {
+    $property = $context['property'];
+    $rules = &$context['rules'];
+    $options = explode(',', $property->data['typeface_options']);
+    foreach ($options as $option) {
+      list($url, $name) = explode('|', $option);
+      $url = trim($url);
+      $name = trim($name);
+      if ($name == $rule->value && filter_var($url, FILTER_VALIDATE_URL)) {
+        $import_rule = '@import "' . $url . '";';
+        if (!in_array($import_rule, $rules)) {
+          array_unshift($rules, $import_rule);
+        }
+      }
+    }
+  }
+}
+
+/**
  * Save a settings array for the current site and generate the stylesheet.
  */
 function user_settings_save($settings) {
@@ -506,7 +569,6 @@ function user_settings_save($settings) {
   if ($file = user_settings_build_stylesheet($settings)) {
     variable_set('user_settings_stylesheet', $file->uri);
   }
-  dpm($file);
 }
 
 /**

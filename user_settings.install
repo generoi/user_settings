@@ -13,28 +13,16 @@ function user_settings_schema() {
         'length' => 10,
         'not null' => TRUE,
       ),
-      'font_family' => array(
-        'description' => 'Font family',
-        'type' => 'varchar',
-        'length' => 40,
-        'not null' => TRUE,
-      ),
-      'font_size' => array(
-        'description' => 'Font size',
+      'fid' => array(
+        'description' => 'File ID',
         'type' => 'int',
         'length' => 5,
-      ),
-      'color_heading' => array(
-        'description' => 'Heading color',
-        'type' => 'varchar',
-        'length' => 7,
         'not null' => FALSE,
       ),
-      'color_text' => array(
-        'description' => 'Text color',
-        'type' => 'varchar',
-        'length' => 7,
-        'not null' => FALSE,
+      'settings' => array(
+        'description' => 'User settings object',
+        'type' => 'blob',
+        'size' => 'normal',
       ),
     ),
     'foreign keys' => array(
@@ -48,5 +36,4 @@ function user_settings_schema() {
   );
 
   return $schema;
-
 }

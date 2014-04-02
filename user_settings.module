@@ -310,7 +310,7 @@ function user_settings_init() {
       $page_match = $page_match || drupal_match_path($path, variable_get('user_settings_exclude_paths', USER_SETTINGS_EXCLUDE_PATHS));
     }
     if (!$page_match) {
-      drupal_add_css($stylesheet);
+      drupal_add_css($stylesheet, array('group' => CSS_THEME, 'weight' => 1000));
     }
   }
   // Add a button to the Panels IPE toolbar.

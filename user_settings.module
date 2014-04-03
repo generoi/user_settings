@@ -359,6 +359,10 @@ function user_settings_build_stylesheet($settings) {
   $properties = user_settings_property_load_all();
   $rules = array();
   foreach ($properties as $machine_name => $property) {
+    $widget = user_settings_get_widgets($property->data['type']);
+    if (!empty($widget['skip stylesheet'])) {
+      continue;
+    }
     $value = $settings['properties'][$machine_name];
     $rule = new stdClass();
     $rule->selector = $property->data['selector'];

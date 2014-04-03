@@ -262,7 +262,8 @@ function user_settings_user_settings_stylesheet_rule_alter(&$rule, $context) {
 function _user_settings_widget_upload_submit($form, $form_state) {
   $account = $form['#account'];
   $settings = $form['#user_settings'];
-  foreach ($form['#widget_upload_fields'] as $field) {
+  $fields = array_unique($form['#widget_upload_fields']);
+  foreach ($fields as $field) {
     $fid = $form_state['values'][$field];
     $previous_fid = isset($settings['properties'][$field]) ? $settings['properties'][$field] : FALSE;
     if ($file = file_load($form_state['values'][$field])) {

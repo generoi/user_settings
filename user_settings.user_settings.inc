@@ -84,6 +84,7 @@ function user_settings_user_settings_widget_color($value, $property, &$form) {
   $element = array(
     '#type' => 'textfield',
     '#title' => $property->name,
+    '#description' => $property->description,
     '#attributes' => array('class' => array('color')),
     '#size' => 10,
     '#default_value' => $value,
@@ -104,6 +105,7 @@ function user_settings_user_settings_widget_select($value, $property, $form) {
   $element = array(
     '#type' => 'select',
     '#title' => $property->name,
+    '#description' => $property->description,
     '#options' => $option_list,
     '#default_value' => $value,
   );
@@ -136,6 +138,7 @@ function user_settings_user_settings_widget_typeface($value, $property, &$form) 
   $element = array(
     '#type' => 'radios',
     '#title' => $property->name,
+    '#description' => $property->description,
     '#options' => $option_list,
     '#default_value' => $value,
     '#attributes' => array('class' => array('select-font')),
@@ -150,6 +153,7 @@ function user_settings_user_settings_widget_checkbox($value, $property, $form) {
   $element = array(
     '#type' => 'checkbox',
     '#title' => $property->name,
+    '#description' => $property->description,
     '#default_value' => $value,
   );
   return $element;
@@ -207,11 +211,11 @@ function user_settings_user_settings_widget_admin_form(&$form, $exportable_objec
 /**
  * Implements hook_user_settings_stylesheet_rule_alter().
  */
-function user_settings_user_settings_stylesheet_rule_alter($rule, $context) {
+function user_settings_user_settings_stylesheet_rule_alter(&$rule, $context) {
+  $property = $context['property'];
+  $rules = &$context['rules'];
   // Import the font for typeface widgets.
   if ($context['widget'] == 'typeface') {
-    $property = $context['property'];
-    $rules = &$context['rules'];
     $options = explode(',', $property->data['typeface_options']);
     foreach ($options as $option) {
       list($url, $name) = explode('|', $option);

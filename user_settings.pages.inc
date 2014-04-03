@@ -4,6 +4,7 @@
  *  Build the user settings form.
  */
 function user_settings_form($form, $form_state, $account) {
+  $form['#account'] = $account;
   $form['properties'] = array(
     '#type' => 'vertical_tabs',
   );
@@ -60,6 +61,7 @@ function user_settings_form($form, $form_state, $account) {
     '#value' => t('Reset'),
     '#submit' => array('user_settings_form_reset'),
   );
+  $form['#submit'][] = 'user_settings_form_submit';
 
   return $form;
 }
@@ -71,7 +73,14 @@ function user_settings_form_submit($form, &$form_state) {
   $properties = $form['#properties'];
   $settings = $form['#user_settings'];
   foreach ($properties as $key => $property) {
-    $settings['properties'][$key] = trim($form_state['values'][$key]);
+    $value = $form_state['values'][$key];
+    if (is_array($value)) {
+      // In case a widget provides a file.
+      if (isset($value['fid'])) {
+        $value = $value['fid'];
+      }
+    }
+    $settings['properties'][$key] = trim($value);
   }
 
   user_settings_save($settings);

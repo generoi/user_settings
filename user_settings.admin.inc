@@ -96,12 +96,20 @@ function user_settings_property_edit_form($form, &$form_state, $exportable_objec
   foreach ($widgets as $name => $widget) {
     $option_list[$name] = $widget['title'];
   }
+
   $form['data']['type'] = array(
     '#type' => 'select',
     '#title' => t('Widget type'),
     '#options' => $option_list,
     '#required' => TRUE,
   );
+
+  // Allow modules to add additional widget options.
+  foreach (module_implements('user_settings_widget_admin_form') as $module) {
+    $function = $module . '_user_settings_widget_admin_form';
+    $function($form['data'], $exportable_object);
+  }
+
   $form['data']['group'] = array(
     '#type' => 'textfield',
     '#title' => t('Group'),

@@ -13,11 +13,21 @@ function user_settings_form($form, $form_state, $account) {
   $form['#properties'] = $properties;
   $form['#user_settings'] = $settings;
   $groups = array();
+  $widget_callbacks = array();
+  // Figure out which module defines which widget.
+  foreach (module_implements('user_settings_widget_info') as $module) {
+    $widget_info = module_invoke($module, 'user_settings_widget_info');
+    foreach($widget_info as $widget_name => $widget) {
+      $widget_callbacks[$widget_name] = $module;
+    }
+  }
+
   foreach ($properties as $machine_name => $property) {
-    $widget_type = $property->data['type'];
-    $widget = user_settings_get_widgets($widget_type);
+    $widget_name = $property->data['type'];
+    $widget_module = $widget_callbacks[$widget_name];
+    // The .inc file is already loaded due to module_invoke.
+    $function = $widget_module . '_user_settings_widget_' . $widget_name;
     $value = isset($settings['properties'][$machine_name]) ? $settings['properties'][$machine_name] : $property->data['default'];
-    $function = $widget['setting callback'];
 
     if (!empty($property->data['group'])) {
       $group_name = $property->data['group'];

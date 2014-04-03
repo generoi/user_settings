@@ -12,6 +12,19 @@ function user_settings_ctools_plugin_api($owner, $api) {
 }
 
 /**
+ * Implements hook_hook_info().
+ */
+function user_settings_hook_info() {
+  $hooks = array(
+    'user_settings_widget_info',
+    'user_settings_widget_admin_form',
+    // user_settings_widget_WIDGET
+    'user_settings_stylesheet_rule_alter',
+  );
+  return array_fill_keys($hooks, array('group' => 'user_settings'));
+}
+
+/**
  *  Implements hook_permission().
  */
 function user_settings_permission() {
@@ -337,164 +350,6 @@ function user_settings_get_widgets($widget = NULL) {
     $widgets = module_invoke_all('user_settings_widget_info');
   }
   return isset($widget) ? $widgets[$widget] : $widgets;
-}
-
-/**
- * Implements hook_user_settings_widget_info().
- */
-function user_settings_user_settings_widget_info() {
-  return array(
-    'color' => array(
-      'title' => t('Color picker'),
-      'setting callback' => 'user_settings_widget_color',
-    ),
-    'typeface' => array(
-      'title' => t('Typeface selector'),
-      'setting callback' => 'user_settings_widget_typeface',
-    ),
-    'select' => array(
-      'title' => t('Select list'),
-      'setting callback' => 'user_settings_widget_select',
-    ),
-    'upload' => array(
-      'title' => t('Image upload'),
-      'setting callback' => 'user_settings_widget_upload',
-    ),
-    'checkbox' => array(
-      'title' => t('Checkbox'),
-      'setting callback' => 'user_settings_widget_checkbox',
-    ),
-  );
-}
-
-function user_settings_widget_color($value, $property, &$form) {
-  static $attached = FALSE;
-  if (!$attached) {
-    $form['#attached']['library'][] = array('system', 'farbtastic');
-    $form['#attached']['js'][] = drupal_get_path('module', 'user_settings') . '/js/user_settings.js';
-    $form['#attached']['css'][] = drupal_get_path('module', 'color') . '/color.css';
-    $attached = TRUE;
-  }
-
-  if (!empty($property->data['group'])) {
-    $group_name = $property->data['group'];
-    $group = drupal_clean_css_identifier($group_name);
-    // @TODO multiple groups unique ids
-    $form[$group]['color_picker'] = array('#weight' => -1, '#markup' => '<div id="color-picker"></div>');
-  }
-  else {
-    $form['color_picker'] = array('#weight' => -1, '#markup' => '<div id="color-picker"></div>');
-  }
-
-  $element = array(
-    '#type' => 'textfield',
-    '#title' => $property->name,
-    '#attributes' => array('class' => array('color')),
-    '#size' => 10,
-    '#default_value' => $value,
-  );
-  return $element;
-}
-
-function user_settings_widget_select($value, $property, $form) {
-  $options = explode(',', $property->data['options']);
-  foreach ($options as $option) {
-    list($machine_name, $name) = explode('|', $option);
-    $option_list[trim($machine_name)] = trim($name);
-  }
-
-  $element = array(
-    '#type' => 'select',
-    '#title' => $property->name,
-    '#options' => $option_list,
-    '#default_value' => $value,
-  );
-  return $element;
-}
-
-function user_settings_widget_upload($value, $property, $form) {
-  $element = array(
-  );
-  return $element;
-}
-
-function user_settings_widget_typeface($value, $property, &$form) {
-  $options = explode(',', $property->data['typeface_options']);
-  $urls = array();
-  foreach ($options as $option) {
-    list($url, $name) = explode('|', $option);
-    $url = trim($url);
-    $name = trim($name);
-    $option_list[$name] = $name;
-    $form['#attached']['css'][$url] = array('type' => 'external');
-  }
-
-  $element = array(
-    '#type' => 'radios',
-    '#title' => $property->name,
-    '#options' => $option_list,
-    '#default_value' => $value,
-    '#attributes' => array('class' => array('select-font')),
-  );
-  return $element;
-}
-
-function user_settings_widget_checkbox($value, $property, $form) {
-  $element = array(
-    '#type' => 'checkbox',
-    '#title' => $property->name,
-    '#default_value' => $value,
-  );
-  return $element;
-}
-
-/**
- * Implements hook_form_FORM_ID_alter().
- */
-function user_settings_form_user_settings_property_edit_form_alter(&$form, &$form_state) {
-  $exportable_object = $form['#exportable_object'];
-  $form['data']['options'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Options'),
-    '#description' => t('Comma separated options in the form value|Human readable'),
-    '#default_value' => isset($exportable_object->data['options']) ? $exportable_object->data['options'] : '',
-    '#states' => array(
-      'visible' => array(
-        ':input[name="data[type]"]' => array('value' => 'select'),
-      ),
-    ),
-  );
-  $form['data']['typeface_options'] = array(
-    '#type' => 'textarea',
-    '#title' => t('Options'),
-    '#description' => t('Comma separated options in the form http://fonts.googleapis.com/css?family=Belleza|Belleza'),
-    '#default_value' => isset($exportable_object->data['typeface_options']) ? $exportable_object->data['typeface_options'] : '',
-    '#states' => array(
-      'visible' => array(
-        ':input[name="data[type]"]' => array('value' => 'typeface'),
-      ),
-    ),
-  );
-  $form['data']['on_state'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Checked state property value'),
-    '#default_value' => isset($exportable_object->data['on_state']) ? $exportable_object->data['on_state'] : '',
-    '#states' => array(
-      'visible' => array(
-        ':input[name="data[type]"]' => array('value' => 'checkbox'),
-      ),
-    ),
-  );
-  $form['data']['off_state'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Unhecked state property value'),
-    '#default_value' => isset($exportable_object->data['off_state']) ? $exportable_object->data['off_state'] : '',
-    '#states' => array(
-      'visible' => array(
-        ':input[name="data[type]"]' => array('value' => 'checkbox'),
-      ),
-    ),
-  );
 }
 
 /**

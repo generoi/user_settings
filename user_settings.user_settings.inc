@@ -56,6 +56,10 @@ function user_settings_user_settings_widget_info() {
     'checkbox' => array(
       'title' => t('Checkbox'),
     ),
+    'variable' => array(
+      'title' => t('Variable'),
+      'skip stylesheet' => TRUE,
+    ),
   );
 }
 
@@ -125,6 +129,21 @@ function user_settings_user_settings_widget_upload($value, $property, &$form) {
   );
   $form['#widget_upload_fields'][] = $property->machine_name;
   $form['#submit'][] = 'user_settings_widget_upload_submit';
+  return $element;
+}
+
+/**
+ * Implements hook_user_settings_widget_WIDGET().
+ */
+function user_settings_user_settings_widget_variable($value, $property, &$form) {
+  $element = array(
+    '#type' => 'textfield',
+    '#title' => $property->name,
+    '#description' => $property->description,
+    '#default_value' => variable_get($property->data['variable_name'], $value),
+  );
+  $form['#widget_variable_fields'][] = $property->machine_name;
+  $form['#submit'][] = 'user_settings_widget_variable_submit';
   return $element;
 }
 
@@ -224,6 +243,15 @@ function user_settings_user_settings_widget_admin_form(&$form, $exportable_objec
       ),
     ),
   );
+  $form['variable_name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('The variable name'),
+    '#states' => array(
+      'visible' => array(
+        ':input[name="data[type]"]' => array('value' => 'variable'),
+      ),
+    ),
+  );
 }
 
 /**
@@ -281,5 +309,19 @@ function _user_settings_widget_upload_submit($form, $form_state) {
       file_save($file);
       file_usage_add($file, 'user_settings', 'user_settings', $account->uid);
     }
+  }
+}
+
+/**
+ * Delegated submit callback for variable widgets.
+ */
+function _user_settings_widget_variable_submit($form, $form_state) {
+  $properties = $form['#properties'];
+  $fields = array_unique($form['#widget_variable_fields']);
+  foreach ($fields as $field) {
+    $value = $form_state['values'][$field];
+    $property = $properties[$field];
+    $variable_name = $property->data['variable_name'];
+    variable_set($variable_name, $value);
   }
 }

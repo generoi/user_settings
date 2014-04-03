@@ -440,3 +440,11 @@ function user_settings_widget_upload_submit($form, $form_state) {
   module_load_include('inc', 'user_settings', 'user_settings.user_settings');
   _user_settings_widget_upload_submit($form, $form_state);
 }
+
+/**
+ * Submit callback for variable widgets.
+ */
+function user_settings_widget_variable_submit($form, $form_state) {
+  module_load_include('inc', 'user_settings', 'user_settings.user_settings');
+  _user_settings_widget_variable_submit($form, $form_state);
+}

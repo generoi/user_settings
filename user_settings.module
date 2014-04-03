@@ -152,17 +152,6 @@ function user_settings_theme() {
  */
 function user_settings_property_save($property) {
   ctools_include('export');
-
-  // // Fill data values for checkbox (custom form value) if exists.
-  // if (!empty($property->checkbox)) {
-  //   $property->data['checkbox'] = $property->checkbox;
-  // }
-
-  // // Fill data values for user notes (custom form value) if exists.
-  // if (!empty($property->notes)) {
-  //   $property->data['notes'] = $property->notes;
-  // }
-
   $save_result = ctools_export_crud_save('user_settings_properties', $property);
   return $save_result;
 }
@@ -302,6 +291,8 @@ function user_settings_admin_paths() {
  * Implements hook_init().
  */
 function user_settings_init() {
+  // Include the custom stylesheet if path isnt admin and not in the exclude
+  // path.
   if (!path_is_admin(current_path()) && ($stylesheet = variable_get('user_settings_stylesheet'))) {
     $path = drupal_strtolower(drupal_get_path_alias($_GET['q']));
     $page_match = drupal_match_path($path, variable_get('user_settings_exclude_paths', USER_SETTINGS_EXCLUDE_PATHS));
@@ -325,6 +316,9 @@ function user_settings_init() {
         '#id' => 'panels-ipe-user-settings',
         '#attributes' => array(
           'class' => array('panels-ipe-pseudobutton'),
+        ),
+        '#options' => array(
+          'query' => array('destination' => current_path()),
         ),
         '#prefix' => '<div class="panels-ipe-pseudobutton-container">',
         '#suffix' => '</div>',

@@ -534,34 +534,14 @@ function user_settings_build_stylesheet($settings) {
 }
 
 /**
- * Implements hook_user_settings_stylesheet_rule_alter().
- */
-function user_settings_user_settings_stylesheet_rule_alter($rule, $context) {
-  if ($context['widget'] == 'typeface') {
-    $property = $context['property'];
-    $rules = &$context['rules'];
-    $options = explode(',', $property->data['typeface_options']);
-    foreach ($options as $option) {
-      list($url, $name) = explode('|', $option);
-      $url = trim($url);
-      $name = trim($name);
-      if ($name == $rule->value && filter_var($url, FILTER_VALIDATE_URL)) {
-        $import_rule = '@import "' . $url . '";';
-        if (!in_array($import_rule, $rules)) {
-          array_unshift($rules, $import_rule);
-        }
-      }
-    }
-  }
-}
-
-/**
  * Save a settings array for the current site and generate the stylesheet.
  */
 function user_settings_save($settings) {
   variable_set('user_settings', $settings);
   if ($file = user_settings_build_stylesheet($settings)) {
     variable_set('user_settings_stylesheet', $file->uri);
+    // Change query-strings on css/js files to enforce reload for all users.
+    _drupal_flush_css_js();
   }
 }
 

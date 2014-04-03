@@ -428,3 +428,11 @@ function user_settings_delete() {
     }
   }
 }
+
+/**
+ * Submit callback for upload widgets.
+ */
+function user_settings_widget_upload_submit($form, $form_state) {
+  module_load_include('inc', 'user_settings', 'user_settings.user_settings');
+  _user_settings_widget_upload_submit($form, $form_state);
+}

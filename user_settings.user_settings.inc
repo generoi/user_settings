@@ -115,9 +115,16 @@ function user_settings_user_settings_widget_select($value, $property, $form) {
 /**
  * Implements hook_user_settings_widget_WIDGET().
  */
-function user_settings_user_settings_widget_upload($value, $property, $form) {
+function user_settings_user_settings_widget_upload($value, $property, &$form) {
   $element = array(
+    '#type' => 'managed_file',
+    '#title' => $property->name,
+    '#description' => $property->description,
+    '#upload_location' => 'public://user_settings/',
+    '#default_value' => $value,
   );
+  $form['#widget_upload_fields'][] = $property->machine_name;
+  $form['#submit'][] = 'user_settings_widget_upload_submit';
   return $element;
 }
 
@@ -187,6 +194,17 @@ function user_settings_user_settings_widget_admin_form(&$form, $exportable_objec
       ),
     ),
   );
+  // Upload widget
+  $form['upload_image_style'] = array(
+    '#type' => 'select',
+    '#title' => t('Image style'),
+    '#options' => image_style_options(),
+    '#states' => array(
+      'visible' => array(
+        ':input[name="data[type]"]' => array('value' => 'upload'),
+      ),
+    ),
+  );
   // Checkbox widget
   $form['on_state'] = array(
     '#type' => 'textfield',
@@ -227,6 +245,40 @@ function user_settings_user_settings_stylesheet_rule_alter(&$rule, $context) {
           array_unshift($rules, $import_rule);
         }
       }
+    }
+  }
+
+  // Output the styled image path for image uploads.
+  if ($context['widget'] == 'upload') {
+    $image_style = $property->data['upload_image_style'];
+    $file = file_load($rule->value);
+    $rule->value = 'url("' . image_style_url($image_style, $file->uri) . '")';
+  }
+}
+
+/**
+ * Delegated submit callback for upload widgets.
+ */
+function _user_settings_widget_upload_submit($form, $form_state) {
+  $account = $form['#account'];
+  $settings = $form['#user_settings'];
+  foreach ($form['#widget_upload_fields'] as $field) {
+    $fid = $form_state['values'][$field];
+    $previous_fid = isset($settings['properties'][$field]) ? $settings['properties'][$field] : FALSE;
+    if ($file = file_load($form_state['values'][$field])) {
+      // If the file hasnt changed skip.
+      if ($file->fid == $previous_fid) {
+        continue;
+      }
+      // If the file has changed and a previous version exists, remove the
+      // previous.
+      else if ($previous_fid && ($previous = file_load($previous_fid))) {
+        file_usage_delete($previous, 'user_settings', 'user_settings', $account->uid);
+        file_delete($previous);
+      }
+      $file->status = FILE_STATUS_PERMANENT;
+      file_save($file);
+      file_usage_add($file, 'user_settings', 'user_settings', $account->uid);
     }
   }
 }

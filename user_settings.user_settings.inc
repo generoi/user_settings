@@ -250,8 +250,9 @@ function user_settings_user_settings_stylesheet_rule_alter(&$rule, $context) {
   // Output the styled image path for image uploads.
   if ($context['widget'] == 'upload') {
     $image_style = $property->data['upload_image_style'];
-    $file = file_load($rule->value);
-    $rule->value = 'url("' . image_style_url($image_style, $file->uri) . '")';
+    if ($file = file_load($rule->value)) {
+      $rule->value = 'url("' . image_style_url($image_style, $file->uri) . '")';
+    }
   }
 }
 

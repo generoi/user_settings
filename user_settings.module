@@ -319,24 +319,25 @@ function user_settings_init() {
   }
   // Add a button to the Panels IPE toolbar.
   if (module_exists('multisite') && module_exists('panels_ipe') && !path_is_admin(current_path())) {
-    $multisite = multisite_load_current();
-    $user = user_load($multisite->uid);
-    if (user_settings_access('edit', $user)) {
-      $button = array(
-        '#type' => 'link',
-        '#title' => 'Site settings',
-        '#href' => "user/$user->uid/settings",
-        '#id' => 'panels-ipe-user-settings',
-        '#attributes' => array(
-          'class' => array('panels-ipe-pseudobutton'),
-        ),
-        '#options' => array(
-          'query' => array('destination' => current_path()),
-        ),
-        '#prefix' => '<div class="panels-ipe-pseudobutton-container">',
-        '#suffix' => '</div>',
-      );
-      panels_ipe_toolbar_add_button('user-settings', 'panels-ipe-user-settings', $button);
+    if ($multisite = multisite_load_current()) {
+      $user = user_load($multisite->uid);
+      if (user_settings_access('edit', $user)) {
+        $button = array(
+          '#type' => 'link',
+          '#title' => 'Site settings',
+          '#href' => "user/$user->uid/settings",
+          '#id' => 'panels-ipe-user-settings',
+          '#attributes' => array(
+            'class' => array('panels-ipe-pseudobutton'),
+          ),
+          '#options' => array(
+            'query' => array('destination' => current_path()),
+          ),
+          '#prefix' => '<div class="panels-ipe-pseudobutton-container">',
+          '#suffix' => '</div>',
+        );
+        panels_ipe_toolbar_add_button('user-settings', 'panels-ipe-user-settings', $button);
+      }
     }
   }
 }
